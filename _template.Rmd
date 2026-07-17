@@ -137,11 +137,23 @@ qc_data <- krsa_qc_steps(raw_data) |>
 
 groups <- unique(qc_data[["Group"]])
 
+# ---- NEW: filter out peptides not consistently present across cycles ----
+cycle_peptides <- krsa_filter_lowPeps_cycles(
+  raw_data = qc_data,
+  threshold = 5L,               # same as used later for low-signal filter
+  min_pct_cycles = 0.8          # keep peptides present in ≥80% of cycles
+)
+
+# Keep only those peptides for all downstream steps
+qc_data_filtered <- qc_data |>
+  dplyr::filter(Peptide %in% cycle_peptides)
+
 # extract end level signal values @ all max exposure time (100ms)
-data_pw_max <- krsa_extractEndPointMaxExp(qc_data, chipType)
+data_pw_max <- krsa_extractEndPointMaxExp(qc_data_filtered, chipType)
 
 # extract end level signal values end level @ all exposure times
-data_pw <- krsa_extractEndPoint(qc_data, chipType)
+data_pw <- krsa_extractEndPoint(qc_data_filtered, chipType)
+
 ```
 
 ## QC Steps and Model Fitting
