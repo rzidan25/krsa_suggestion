@@ -127,6 +127,33 @@ We will perform a couple of quality control steps to deal with negative values i
 
 ```{r}
 #| label: "quality-control"
+krsa_filter_lowPeps_cycles <- function(raw_data, threshold, min_pct_cycles = 0.8,
+                                      samples = NULL, groups = NULL) {
+    raw_data %>%
+        {
+            if (!is.null(samples)) dplyr::filter(., SampleName %in% samples) else .
+        } %>%
+        {
+            if (!is.null(groups)) dplyr::filter(., Group %in% groups) else .
+        } %>%
+        dplyr::filter(ExposureTime == max(ExposureTime)) %>%
+        dplyr::select(SampleName, Peptide, Cycle, Signal) %>%
+        dplyr::group_by(Peptide, SampleName) %>%
+        dplyr::summarise(pct_present = mean(Signal >= threshold, na.rm = TRUE), .groups = "drop") %>%
+        dplyr::group_by(Peptide) %>%
+        dplyr::filter(all(pct_present >= min_pct_cycles)) %>%
+        dplyr::pull(Peptide) %>%
+        unique() -> p
+
+    message(paste(
+        "Filtered out", length(unique(raw_data$Peptide)) - length(p),
+        "Peptides not present in at least", paste0(round(min_pct_cycles * 100), "%"),
+        "of cycles in every sample"
+    ))
+
+    p
+}
+
 
 # qc processing
 qc_data <- krsa_qc_steps(raw_data) |>
